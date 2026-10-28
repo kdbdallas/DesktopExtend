@@ -1,0 +1,8 @@
+.DS_Store
+
+# SwiftPM
+.build/
+.swiftpm/
+
+# Script output: signed .app/.dmg and notarization submission ids
+build/
