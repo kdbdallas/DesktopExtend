@@ -1,12 +1,30 @@
 # DesktopExtend
 
-Gives your Mac a second desktop that macOS treats as a genuine second monitor.
-Only one is visible at a time: push the cursor past the edge of the screen and
-the view scrolls across to the other desktop.
+![DesktopExtend: Give your Mac a second desktop](Banners/DesktopExtend_Banner.png)
 
-Unlike Spaces, this is a real display — windows can be dragged onto it, it has
-its own menu bar, apps can be full-screened on it, and window positions persist.
-Unlike a physical monitor, it shares the one panel you already have.
+Your Mac's screen is only so big. DesktopExtend adds a second desktop beside it, and macOS treats it as a real second monitor.
+
+You see one desktop at a time. Push your cursor past the edge of the screen and the view slides across to the other one. Push back and you're home.
+
+It's a real display, not a Space. Drag windows onto it, full-screen apps on it, and give it its own menu bar. Window positions stay put between switches, just like on a physical monitor.
+
+Sharp, fast, native. The second desktop runs at your screen's exact resolution, so text stays crisp. Clicks, drags, keyboard focus and window management all work the way they normally do, because the cursor really is on that display.
+
+Out of the way. DesktopExtend lives in the menu bar with no Dock icon. Choose which side the second desktop sits on, turn the slide animation on or off, and have it start at login.
+
+Features
+- A second desktop that macOS sees as a real monitor
+- Push past the screen edge to slide between desktops
+- Put it on the left or right side of your screen
+- Slide transition or an instant cut
+- Full-screen apps, its own menu bar, windows that stay where you left them
+- Recovers on its own after sleep
+- Removes the extra display when you quit, so no leftover monitor
+- No Accessibility permission needed
+
+Requirements: macOS 14 Sonoma or later. DesktopExtend needs Screen Recording permission to show the second desktop on your screen. It asks on first launch and turns on as soon as you grant it.
+
+---
 
 ## How it works
 
@@ -205,23 +223,6 @@ DMG — useful for confirming the mechanics before the certificate exists.
 
 ```bash
 log stream --level info --predicate 'subsystem == "com.port21.DesktopExtend"'
-```
-
-## Layout
-
-```
-Scripts/common.sh            shared signing / packaging helpers
-Scripts/build-app.sh         local build; also builds a .dmg for Developer ID
-Scripts/release.sh           sign -> notarize -> staple -> .dmg
-Sources/CVirtualDisplay/     ObjC shim over the private CoreGraphics classes
-Sources/DesktopExtend/
-  VirtualDisplayManager      creates the display, waits for registration
-  DisplayArrangement         places it flush against the physical display
-  CursorWatcher              polls which display the cursor is on
-  MirrorRenderer             ScreenCaptureKit -> IOSurface -> CALayer
-  OverlayController          click-through window and the slide transition
-  StatusItemController       menu bar UI
-  AppDelegate                wiring, permissions, display reconfiguration
 ```
 
 ## License
