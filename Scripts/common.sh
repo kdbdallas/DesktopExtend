@@ -53,13 +53,18 @@ de_is_developer_id() {
     esac
 }
 
-# Assembles a .app bundle around an already-built executable.
+# Assembles a .app bundle around an already-built executable. The app icon is
+# taken from AppIcon.icns next to the plist, matching CFBundleIconFile.
 de_assemble_app() {
     local binary="$1" app="$2" plist="$3"
+    local icon
+    icon="$(dirname "$plist")/AppIcon.icns"
+    [[ -f "$icon" ]] || de_fail "missing app icon: $icon"
     rm -rf "$app"
     mkdir -p "$app/Contents/MacOS" "$app/Contents/Resources"
     cp "$binary" "$app/Contents/MacOS/$APP_NAME"
     cp "$plist" "$app/Contents/Info.plist"
+    cp "$icon" "$app/Contents/Resources/AppIcon.icns"
     printf 'APPL????' > "$app/Contents/PkgInfo"
 }
 

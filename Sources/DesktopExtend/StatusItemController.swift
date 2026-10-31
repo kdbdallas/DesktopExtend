@@ -15,9 +15,7 @@ final class StatusItemController: NSObject {
     override init() {
         item = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
         super.init()
-        item.button?.image = NSImage(systemSymbolName: "rectangle.on.rectangle",
-                                     accessibilityDescription: "DesktopExtend")
-        item.button?.image?.isTemplate = true
+        item.button?.image = MenuBarIcon.make()
     }
 
     func refresh(enabled: Bool,
