@@ -215,7 +215,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         for attempt in 1...attempts {
             guard isEnabled, virtualDisplay.isActive,
                   let anchor = NSScreen.screens.first(where: { $0.displayID == anchorDisplayID })
-            else { return false }
+            else {
+                overlay?.hideImmediately()
+                return false
+            }
 
             do {
                 try await mirror.start(displayID: virtualDisplay.displayID,
@@ -238,6 +241,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
 
         Log.capture.error("mirror never restarted after \(attempts, privacy: .public) attempts")
+        // Capture is gone for good; do not leave an overlay on screen.
+        overlay?.hideImmediately()
         statusText = "Mirror stopped — turn the second desktop off and on"
         refreshStatusItem()
         return false
