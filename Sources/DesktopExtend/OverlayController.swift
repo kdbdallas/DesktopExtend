@@ -29,6 +29,7 @@ final class OverlayController {
     private(set) var isShowingVirtual = false
     private var snapshotCapturedAt: CFTimeInterval = 0
     private var snapshotTask: Task<Void, Never>?
+    private var snapshotGeneration: UInt = 0
 
     init(mirror: MirrorRenderer, screenFrame: CGRect, scale: CGFloat, side: DesktopSide) {
         self.mirror = mirror
@@ -135,6 +136,20 @@ final class OverlayController {
         isShowingVirtual = false
         moveContainer(to: physicalOffset, animated: false)
         window.orderOut(nil)
+        discardSnapshot()
+    }
+
+    /// Cancels any in-flight still capture and removes the retained still, so
+    /// neither can be presented after the overlay has been hidden.
+    private func discardSnapshot() {
+        snapshotGeneration &+= 1
+        snapshotTask?.cancel()
+        snapshotTask = nil
+        snapshotCapturedAt = 0
+        CATransaction.begin()
+        CATransaction.setDisableActions(true)
+        snapshotLayer.contents = nil
+        CATransaction.commit()
     }
 
     private func moveContainer(to x: CGFloat,
@@ -181,11 +196,15 @@ final class OverlayController {
         let width = Int((panelSize.width * scale).rounded())
         let height = Int((panelSize.height * scale).rounded())
 
+        let generation = snapshotGeneration
         snapshotTask = Task { [weak self] in
             let image = await Self.captureStill(displayID: displayID,
                                                 pixelWidth: width,
                                                 pixelHeight: height)
             guard let self else { return }
+            // The overlay was hidden (or disabled) while the still was being
+            // captured; the result must not be retained.
+            guard generation == self.snapshotGeneration, !Task.isCancelled else { return }
             self.snapshotTask = nil
             guard let image else { return }
             CATransaction.begin()

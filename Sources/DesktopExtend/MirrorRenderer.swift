@@ -15,6 +15,11 @@ final class MirrorRenderer: NSObject, SCStreamOutput, SCStreamDelegate {
     var onStreamStopped: ((Error) -> Void)?
 
     private var stream: SCStream?
+    /// The stream whose frames may currently reach the layer. Set before
+    /// capture starts and cleared as soon as the stream stops or fails, so
+    /// frames already queued for the main thread are discarded rather than
+    /// repopulating the layer.
+    private var capturingStream: SCStream?
     private let outputQueue = DispatchQueue(label: "com.port21.DesktopExtend.capture",
                                             qos: .userInteractive)
     /// Retained so the IOSurface currently on screen cannot be recycled beneath us.
@@ -72,16 +77,43 @@ final class MirrorRenderer: NSObject, SCStreamOutput, SCStreamDelegate {
 
         let stream = SCStream(filter: filter, configuration: configuration, delegate: self)
         try stream.addStreamOutput(self, type: .screen, sampleHandlerQueue: outputQueue)
-        try await stream.startCapture()
+        capturingStream = stream
+        do {
+            try await stream.startCapture()
+        } catch {
+            if capturingStream === stream { capturingStream = nil }
+            clearContents()
+            throw error
+        }
         self.stream = stream
         lastFrameAt = CACurrentMediaTime()
     }
 
     func stop() async {
-        guard let stream else { return }
-        self.stream = nil
-        try? await stream.stopCapture()
-        presentedBuffer = nil
+        let active = stream
+        stream = nil
+        capturingStream = nil
+        // Drop the last frame before awaiting the stream's shutdown so that no
+        // stale desktop pixels remain in the layer while capture winds down.
+        clearContents()
+        guard let active else { return }
+        try? await active.stopCapture()
+        // Discard any frame that was enqueued while the stream was stopping.
+        clearContents()
+    }
+
+    /// Removes every captured pixel from the layer and releases the backing
+    /// buffer, so a layer that is later presented cannot replay old content.
+    func clearContents() {
+        let clear = {
+            CATransaction.begin()
+            CATransaction.setDisableActions(true)
+            self.layer.contents = nil
+            CATransaction.commit()
+            self.presentedBuffer = nil
+            self.lastFrameAt = 0
+        }
+        if Thread.isMainThread { clear() } else { DispatchQueue.main.async(execute: clear) }
     }
 
     // MARK: - SCStreamOutput
@@ -102,6 +134,7 @@ final class MirrorRenderer: NSObject, SCStreamOutput, SCStreamDelegate {
         else { return }
 
         DispatchQueue.main.async {
+            guard self.capturingStream === stream else { return }
             self.lastFrameAt = CACurrentMediaTime()
             self.presentedBuffer = pixelBuffer
             CATransaction.begin()
@@ -120,6 +153,10 @@ final class MirrorRenderer: NSObject, SCStreamOutput, SCStreamDelegate {
             // replaced it.
             guard self.stream === stream else { return }
             self.stream = nil
+            self.capturingStream = nil
+            // The last frame is a snapshot of the desktop; never leave it on
+            // a layer that may still be on screen after capture has died.
+            self.clearContents()
             self.onStreamStopped?(error)
         }
     }
